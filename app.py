@@ -212,7 +212,7 @@ def estimate_cost(model, scaler, product_type, material_type, weight, production
     return estimated_cost_usd, estimated_cost_lkr
 
 # Example usage
-img_path = './images.jpg'  # Path to the image of the product
+img_path = './image.jpg'  # Path to the image of the product
 
 # Classify the image using OpenAI Vision API
 product_class = classify_image(img_path)
