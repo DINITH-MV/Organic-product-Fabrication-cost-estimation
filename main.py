@@ -1,5 +1,6 @@
 import json
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, HTTPException, Request
+from pydantic import BaseModel
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -9,7 +10,8 @@ from sklearn.model_selection import train_test_split
 from openai import OpenAI
 import re
 
-app = Flask(__name__)
+# Initialize the FastAPI app
+app = FastAPI()
 
 # Set OpenAI API key
 api_key = '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'  # Replace with your actual API key
@@ -198,12 +200,13 @@ def estimate_cost(model, scaler, X, product_type, material_type, weight, product
     estimated_cost_lkr = estimated_cost_usd * conversion_rate
     return estimated_cost_usd, estimated_cost_lkr
 
+# Define a Pydantic model for the incoming request
+class EstimateCostRequest(BaseModel):
+    img_url: str
 
-# Flask API endpoint
-@app.route('/estimate-cost', methods=['POST'])
-def estimate_cost_api():
-    data = request.json
-    img_url = data.get('img_url')
+@app.post("/estimate-cost")
+async def estimate_cost_api(request: EstimateCostRequest):
+    img_url = request.img_url
 
     # Classify the image using OpenAI Vision API
     product_class = classify_image(img_url)
@@ -246,7 +249,6 @@ def estimate_cost_api():
             "error": "Could not generate data for the detected product."
         }
 
-    return jsonify(response)
+    return response
 
-if __name__ == '__main__':
-    app.run(debug=True)
+

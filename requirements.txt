@@ -1,6 +1,7 @@
-Flask
-scikit-learn
+fastapi
+uvicorn
 pandas
 numpy
-requests
+scikit-learn
+pydantic
 openai
