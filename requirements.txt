@@ -6,3 +6,4 @@ scikit-learn
 pydantic
 openai
 uvicorn
+python-dotenv
