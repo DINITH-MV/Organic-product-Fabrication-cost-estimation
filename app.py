@@ -1,3 +1,4 @@
+import json
 from flask import Flask, request, jsonify
 import pandas as pd
 import numpy as np
@@ -5,28 +6,41 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
-import openai
+from openai import OpenAI
 import re
 
 app = Flask(__name__)
 
 # Set OpenAI API key
-api_key = 'your_api_key_here'  # Replace with your actual API key
+api_key = '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'  # Replace with your actual API key
 
-# Initialize OpenAI client
-openai.api_key = api_key
+client = OpenAI(api_key=api_key)
 
 # Function to classify image using OpenAI API
-def classify_image(image_url):
-    response = openai.Image.create(
+def classify_image(img_url):
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Tell me whether is it [bottle || container || bag || cup || plate || utensil || tub || wrap || tray || bucket]? Please provide a single-word description of the product type."},
+                {"type": "image_url", "image_url": {"url": img_url}}
+            ]
+        }
+    ]
+
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
-        url=image_url,
-        tasks=[{"name": "classification", "parameters": {}}]
+        messages=messages,
+        max_tokens=300
     )
 
+    # Ensure response is parsed as JSON
+    result = response.model_dump_json()
+    result = json.loads(result)
+    
     # Extracting the product type from the response
-    result = response['choices'][0]['message']['content'].strip().lower()  # Adjust based on actual response structure
-    product_type = re.sub(r'[^\w\s]', '', result)  # Remove punctuation
+    product_type = result['choices'][0]['message']['content'].strip().lower()  # Adjust based on actual response structure
+    product_type = re.sub(r'[^\w\s]', '', product_type)  # Remove punctuation
     return product_type
 
 # Updated templates for generating data based on product type and material type
@@ -105,11 +119,10 @@ product_templates = {
 
 # Generate DataFrame based on detected product type
 def generate_data(product_class):
-    product_type = product_class
-    if product_type in product_templates:
-        template = product_templates[product_type]
+    if product_class in product_templates:
+        template = product_templates[product_class]
         data = {
-            'product_type': [product_type] * len(template['weight']),
+            'product_type': [product_class] * len(template['weight']),
             'material_type': ['plastic'] * len(template['weight']),
             'weight': template['weight'],
             'production_time': template['production_time'],
@@ -120,7 +133,7 @@ def generate_data(product_class):
         df = pd.DataFrame(data)
         # Add organic material costs
         organic_data = {
-            'product_type': [product_type] * len(template['weight']),
+            'product_type': [product_class] * len(template['weight']),
             'material_type': ['organic'] * len(template['weight']),
             'weight': [w * 1.2 for w in template['weight']],  # Assuming a 20% weight increase
             'production_time': template['production_time'],
@@ -131,7 +144,7 @@ def generate_data(product_class):
         df_organic = pd.DataFrame(organic_data)
         return pd.concat([df, df_organic], ignore_index=True)
     else:
-        print(f"Template for product type '{product_type}' not found.")
+        print(f"Template for product type '{product_class}' not found.")
         return pd.DataFrame()
 
 # Encode categorical variables
@@ -164,10 +177,10 @@ def train_model(X_train, y_train):
 def evaluate_model(model, X_test, y_test):
     y_pred = model.predict(X_test)
     mae = mean_absolute_error(y_test, y_pred)
-    print(f'Mean Absolute Error: {mae}')
+    print(f"Mean Absolute Error: {mae:.2f}")
 
-# Function to estimate manufacturing cost in USD and convert to LKR
-def estimate_cost(model, scaler, product_type, material_type, weight, production_time, labor_cost, overhead_cost, conversion_rate=320):
+# Estimate cost
+def estimate_cost(model, scaler, X, product_type, material_type, weight, production_time, labor_cost, overhead_cost, conversion_rate=320):
     input_data = pd.DataFrame([[product_type, material_type, weight, production_time, labor_cost, overhead_cost]], 
                               columns=['product_type', 'material_type', 'weight', 'production_time', 'labor_cost', 'overhead_cost'])
     input_data = pd.get_dummies(input_data, columns=['product_type', 'material_type'])
@@ -185,6 +198,7 @@ def estimate_cost(model, scaler, product_type, material_type, weight, production
     estimated_cost_lkr = estimated_cost_usd * conversion_rate
     return estimated_cost_usd, estimated_cost_lkr
 
+# Flask API endpoint
 @app.route('/estimate-cost', methods=['POST'])
 def estimate_cost_api():
     data = request.json
@@ -214,7 +228,7 @@ def estimate_cost_api():
         df.loc[df['product_type'] == product_class, 'total_cost'] *= cost_increase_factor
 
         # Estimate the cost
-        usd_cost, lkr_cost = estimate_cost(cost_model, scaler, product_class, new_material, 
+        usd_cost, lkr_cost = estimate_cost(cost_model, scaler, X, product_class, new_material, 
                                            df.loc[df['product_type'] == product_class, 'weight'].values[0], 
                                            df.loc[df['product_type'] == product_class, 'production_time'].values[0], 
                                            df.loc[df['product_type'] == product_class, 'labor_cost'].values[0], 
