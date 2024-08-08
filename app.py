@@ -1,49 +1,32 @@
-import json
-import requests
+from flask import Flask, request, jsonify
 import pandas as pd
-from openai import OpenAI
-import re
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
-from flask import Flask, request, jsonify
+import openai
+import re
 
-# Set OpenAI API key
-api_key = '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'  # Replace with your actual API key
-
-# Initialize OpenAI client
-client = OpenAI(api_key=api_key)
-
-# Initialize Flask app
 app = Flask(__name__)
 
-# Function to classify image and detect product type using OpenAI Vision API
-def classify_image(image_url):
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "Tell me whether is it [bottle || container || bag || cup || plate || utensil || tub || wrap || tray || bucket]? Please provide a single-word description of the product type."},
-                {"type": "image_url", "image_url": {"url": image_url}}
-            ]
-        }
-    ]
+# Set OpenAI API key
+api_key = 'your_api_key_here'  # Replace with your actual API key
 
-    response = client.chat.completions.create(
+# Initialize OpenAI client
+openai.api_key = api_key
+
+# Function to classify image using OpenAI API
+def classify_image(image_url):
+    response = openai.Image.create(
         model="gpt-4o-mini",
-        messages=messages,
-        max_tokens=300
+        url=image_url,
+        tasks=[{"name": "classification", "parameters": {}}]
     )
 
-    # Ensure response is parsed as JSON
-    result = response.model_dump_json()
-    result = json.loads(result)
-    
     # Extracting the product type from the response
-    product_type = result['choices'][0]['message']['content'].strip().lower()  # Adjust based on actual response structure
-    product_type = re.sub(r'[^\w\s]', '', product_type)  # Remove punctuation
+    result = response['choices'][0]['message']['content'].strip().lower()  # Adjust based on actual response structure
+    product_type = re.sub(r'[^\w\s]', '', result)  # Remove punctuation
     return product_type
 
 # Updated templates for generating data based on product type and material type
@@ -55,7 +38,7 @@ product_templates = {
         'overhead_cost': [0.1, 0.15],  # USD
         'total_cost': [10.0, 15.0]  # USD (plastic vs. organic)
     },
-   'container': {
+    'container': {
         'weight': [0.2, 0.25],  # kg
         'production_time': [0.7, 0.8],  # hours
         'labor_cost': [7.0, 8.0],  # USD
@@ -117,7 +100,7 @@ product_templates = {
         'labor_cost': [20.0, 25.0],  # USD
         'overhead_cost': [0.2, 0.3],  # USD
         'total_cost': [50.0, 70.0]  # USD (plastic vs. organic)
-    }   
+    }
 }
 
 # Generate DataFrame based on detected product type
@@ -190,7 +173,7 @@ def estimate_cost(model, scaler, product_type, material_type, weight, production
     input_data = pd.get_dummies(input_data, columns=['product_type', 'material_type'])
     
     # Ensure the input data has the same columns as the training data
-    for col in re.X.columns:
+    for col in X.columns:
         if col not in input_data.columns:
             input_data[col] = 0
     
@@ -202,7 +185,7 @@ def estimate_cost(model, scaler, product_type, material_type, weight, production
     estimated_cost_lkr = estimated_cost_usd * conversion_rate
     return estimated_cost_usd, estimated_cost_lkr
 
-@app.route('/estimate_cost', methods=['POST'])
+@app.route('/estimate-cost', methods=['POST'])
 def estimate_cost_api():
     data = request.json
     img_url = data.get('img_url')
