@@ -198,6 +198,7 @@ def estimate_cost(model, scaler, X, product_type, material_type, weight, product
     estimated_cost_lkr = estimated_cost_usd * conversion_rate
     return estimated_cost_usd, estimated_cost_lkr
 
+
 # Flask API endpoint
 @app.route('/estimate-cost', methods=['POST'])
 def estimate_cost_api():
