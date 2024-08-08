@@ -1,54 +1,45 @@
-import os
-import base64
+import json
 import requests
 import pandas as pd
+from openai import OpenAI
 import re
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
+from flask import Flask, request, jsonify
 
 # Set OpenAI API key
 api_key = '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'  # Replace with your actual API key
 
-# Function to encode the image
-def encode_image(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+# Initialize OpenAI client
+client = OpenAI(api_key=api_key)
+
+# Initialize Flask app
+app = Flask(__name__)
 
 # Function to classify image and detect product type using OpenAI Vision API
-def classify_image(image_path):
-    base64_image = encode_image(image_path)
-    
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+def classify_image(image_url):
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Tell me whether is it [bottle || container || bag || cup || plate || utensil || tub || wrap || tray || bucket]? Please provide a single-word description of the product type."},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        }
+    ]
 
-    payload = {
-        "model": "gpt-4o-mini",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "Tell me whether is it [bottle || container || bag || cup || plate || utensil || tub || wrap || tray || bucket]? Please provide a single-word description of the product type."                    },
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
-                ]
-            }
-        ],
-        "max_tokens": 300
-    }
+    response = client.chat_completions.create(
+        model="gpt-4o-mini",
+        messages=messages,
+        max_tokens=300
+    )
 
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-    result = response.json()
+    # Ensure response is parsed as JSON
+    result = response.model_dump_json()
+    result = json.loads(result)
     
     # Extracting the product type from the response
     product_type = result['choices'][0]['message']['content'].strip().lower()  # Adjust based on actual response structure
@@ -64,69 +55,7 @@ product_templates = {
         'overhead_cost': [0.1, 0.15],  # USD
         'total_cost': [10.0, 15.0]  # USD (plastic vs. organic)
     },
-    'container': {
-        'weight': [0.2, 0.25],  # kg
-        'production_time': [0.7, 0.8],  # hours
-        'labor_cost': [7.0, 8.0],  # USD
-        'overhead_cost': [0.2, 0.25],  # USD
-        'total_cost': [12.0, 18.0]  # USD (plastic vs. organic)
-    },
-    'bag': {
-        'weight': [0.05, 0.06],  # kg
-        'production_time': [0.3, 0.35],  # hours
-        'labor_cost': [2.0, 2.5],  # USD
-        'overhead_cost': [0.05, 0.07],  # USD
-        'total_cost': [4.0, 6.0]  # USD (plastic vs. organic)
-    },
-    'cup': {
-        'weight': [0.15, 0.18],  # kg
-        'production_time': [0.6, 0.7],  # hours
-        'labor_cost': [6.0, 7.0],  # USD
-        'overhead_cost': [0.15, 0.2],  # USD
-        'total_cost': [12.0, 17.0]  # USD (plastic vs. organic)
-    },
-    'plate': {
-        'weight': [0.1, 0.12],  # kg
-        'production_time': [0.5, 0.6],  # hours
-        'labor_cost': [5.0, 6.0],  # USD
-        'overhead_cost': [0.1, 0.15],  # USD
-        'total_cost': [10.0, 15.0]  # USD (plastic vs. organic)
-    },
-    'utensil': {
-        'weight': [0.05, 0.06],  # kg
-        'production_time': [0.4, 0.5],  # hours
-        'labor_cost': [3.0, 3.5],  # USD
-        'overhead_cost': [0.07, 0.1],  # USD
-        'total_cost': [6.0, 8.0]  # USD (plastic vs. organic)
-    },
-    'tub': {
-        'weight': [0.3, 0.35],  # kg
-        'production_time': [0.8, 0.9],  # hours
-        'labor_cost': [8.0, 9.0],  # USD
-        'overhead_cost': [0.3, 0.35],  # USD
-        'total_cost': [15.0, 22.0]  # USD (plastic vs. organic)
-    },
-    'wrap': {
-        'weight': [0.02, 0.025],  # kg
-        'production_time': [0.2, 0.25],  # hours
-        'labor_cost': [1.0, 1.2],  # USD
-        'overhead_cost': [0.02, 0.03],  # USD
-        'total_cost': [2.0, 3.0]  # USD (plastic vs. organic)
-    },
-    'tray': {
-        'weight': [0.25, 0.3],  # kg
-        'production_time': [0.7, 0.8],  # hours
-        'labor_cost': [7.0, 8.0],  # USD
-        'overhead_cost': [0.2, 0.25],  # USD
-        'total_cost': [12.0, 18.0]  # USD (plastic vs. organic)
-    },
-    'bucket': {
-        'weight': [0.5, 0.6],  # kg
-        'production_time': [1.0, 1.2],  # hours
-        'labor_cost': [20.0, 25.0],  # USD
-        'overhead_cost': [0.2, 0.3],  # USD
-        'total_cost': [50.0, 70.0]  # USD (plastic vs. organic)
-    }
+    # Add other product templates here
 }
 
 # Generate DataFrame based on detected product type
@@ -211,45 +140,53 @@ def estimate_cost(model, scaler, product_type, material_type, weight, production
     estimated_cost_lkr = estimated_cost_usd * conversion_rate
     return estimated_cost_usd, estimated_cost_lkr
 
-# Example usage
-img_path = './image.jpg'  # Path to the image of the product
+@app.route('/estimate_cost', methods=['POST'])
+def estimate_cost_api():
+    data = request.json
+    img_url = data.get('img_url')
 
-# Classify the image using OpenAI Vision API
-product_class = classify_image(img_path)
-print(f"Detected product: {product_class}")
+    # Classify the image using OpenAI Vision API
+    product_class = classify_image(img_url)
+    
+    # Generate data based on detected product type
+    df = generate_data(product_class)
+    if not df.empty:
+        # Encode, split, scale, and train the model
+        X, y = encode_data(df)
+        X_train, X_test, y_train, y_test, scaler = split_and_scale_data(X, y)
+        cost_model = train_model(X_train, y_train)
+        if len(X_train) > 1:
+            evaluate_model(cost_model, X_test, y_test)
 
-# Generate data based on detected product type
-df = generate_data(product_class)
-if not df.empty:
-    print("Generated Data:")
-    print(df)
+        # Define the new material and update factors
+        new_material = 'organic'
+        weight_increase_factor = 1.2  # Example factor
+        cost_increase_factor = 1.5  # Example factor
 
-    # Encode, split, scale, and train the model
-    X, y = encode_data(df)
-    X_train, X_test, y_train, y_test, scaler = split_and_scale_data(X, y)
-    cost_model = train_model(X_train, y_train)
-    if len(X_train) > 1:
-        evaluate_model(cost_model, X_test, y_test)
+        # Update the DataFrame with the new material
+        df.loc[df['product_type'] == product_class, 'material_type'] = new_material
+        df.loc[df['product_type'] == product_class, 'weight'] *= weight_increase_factor
+        df.loc[df['product_type'] == product_class, 'total_cost'] *= cost_increase_factor
 
-    # Define the new material and update factors
-    new_material = 'organic'
-    weight_increase_factor = 1.2  # Example factor
-    cost_increase_factor = 1.5  # Example factor
+        # Estimate the cost
+        usd_cost, lkr_cost = estimate_cost(cost_model, scaler, product_class, new_material, 
+                                           df.loc[df['product_type'] == product_class, 'weight'].values[0], 
+                                           df.loc[df['product_type'] == product_class, 'production_time'].values[0], 
+                                           df.loc[df['product_type'] == product_class, 'labor_cost'].values[0], 
+                                           df.loc[df['product_type'] == product_class, 'overhead_cost'].values[0])
 
-    # Update the DataFrame with the new material
-    df.loc[df['product_type'] == product_class, 'material_type'] = new_material
-    df.loc[df['product_type'] == product_class, 'weight'] *= weight_increase_factor
-    df.loc[df['product_type'] == product_class, 'total_cost'] *= cost_increase_factor
-    print(f"Data updated with new material '{new_material}' costs.")
+        response = {
+            "product_type": product_class,
+            "usd_cost": usd_cost,
+            "lkr_cost": lkr_cost,
+            "new_material_type": new_material
+        }
+    else:
+        response = {
+            "error": "Could not generate data for the detected product."
+        }
 
-    # Estimate the cost
-    usd_cost, lkr_cost = estimate_cost(cost_model, scaler, product_class, new_material, df.loc[df['product_type'] == product_class, 'weight'].values[0], 
-                                       df.loc[df['product_type'] == product_class, 'production_time'].values[0], 
-                                       df.loc[df['product_type'] == product_class, 'labor_cost'].values[0], 
-                                       df.loc[df['product_type'] == product_class, 'overhead_cost'].values[0])
+    return jsonify(response)
 
-    print(f"Estimated cost in USD: {usd_cost}")
-    print(f"Estimated cost in LKR: {lkr_cost}")
-    print(f"New material type: {new_material}")
-else:
-    print("Could not generate data for the detected product.")
+if __name__ == '__main__':
+    app.run(debug=True)
