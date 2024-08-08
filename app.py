@@ -55,7 +55,69 @@ product_templates = {
         'overhead_cost': [0.1, 0.15],  # USD
         'total_cost': [10.0, 15.0]  # USD (plastic vs. organic)
     },
-    # Add other product templates here
+   'container': {
+        'weight': [0.2, 0.25],  # kg
+        'production_time': [0.7, 0.8],  # hours
+        'labor_cost': [7.0, 8.0],  # USD
+        'overhead_cost': [0.2, 0.25],  # USD
+        'total_cost': [12.0, 18.0]  # USD (plastic vs. organic)
+    },
+    'bag': {
+        'weight': [0.05, 0.06],  # kg
+        'production_time': [0.3, 0.35],  # hours
+        'labor_cost': [2.0, 2.5],  # USD
+        'overhead_cost': [0.05, 0.07],  # USD
+        'total_cost': [4.0, 6.0]  # USD (plastic vs. organic)
+    },
+    'cup': {
+        'weight': [0.15, 0.18],  # kg
+        'production_time': [0.6, 0.7],  # hours
+        'labor_cost': [6.0, 7.0],  # USD
+        'overhead_cost': [0.15, 0.2],  # USD
+        'total_cost': [12.0, 17.0]  # USD (plastic vs. organic)
+    },
+    'plate': {
+        'weight': [0.1, 0.12],  # kg
+        'production_time': [0.5, 0.6],  # hours
+        'labor_cost': [5.0, 6.0],  # USD
+        'overhead_cost': [0.1, 0.15],  # USD
+        'total_cost': [10.0, 15.0]  # USD (plastic vs. organic)
+    },
+    'utensil': {
+        'weight': [0.05, 0.06],  # kg
+        'production_time': [0.4, 0.5],  # hours
+        'labor_cost': [3.0, 3.5],  # USD
+        'overhead_cost': [0.07, 0.1],  # USD
+        'total_cost': [6.0, 8.0]  # USD (plastic vs. organic)
+    },
+    'tub': {
+        'weight': [0.3, 0.35],  # kg
+        'production_time': [0.8, 0.9],  # hours
+        'labor_cost': [8.0, 9.0],  # USD
+        'overhead_cost': [0.3, 0.35],  # USD
+        'total_cost': [15.0, 22.0]  # USD (plastic vs. organic)
+    },
+    'wrap': {
+        'weight': [0.02, 0.025],  # kg
+        'production_time': [0.2, 0.25],  # hours
+        'labor_cost': [1.0, 1.2],  # USD
+        'overhead_cost': [0.02, 0.03],  # USD
+        'total_cost': [2.0, 3.0]  # USD (plastic vs. organic)
+    },
+    'tray': {
+        'weight': [0.25, 0.3],  # kg
+        'production_time': [0.7, 0.8],  # hours
+        'labor_cost': [7.0, 8.0],  # USD
+        'overhead_cost': [0.2, 0.25],  # USD
+        'total_cost': [12.0, 18.0]  # USD (plastic vs. organic)
+    },
+    'bucket': {
+        'weight': [0.5, 0.6],  # kg
+        'production_time': [1.0, 1.2],  # hours
+        'labor_cost': [20.0, 25.0],  # USD
+        'overhead_cost': [0.2, 0.3],  # USD
+        'total_cost': [50.0, 70.0]  # USD (plastic vs. organic)
+    }   
 }
 
 # Generate DataFrame based on detected product type
