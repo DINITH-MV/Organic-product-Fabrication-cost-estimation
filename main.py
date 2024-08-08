@@ -9,12 +9,16 @@ from sklearn.metrics import mean_absolute_error
 from sklearn.model_selection import train_test_split
 from openai import OpenAI
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Initialize the FastAPI app
 app = FastAPI()
 
 # Set OpenAI API key
-api_key = 'sk-5M3Q8tjOmYBRLPjahEStnryno26YWonm6MCrsN7jVST3BlbkFJcXUyaYzV6frFwu4uxUQJKvjW3Xdj2EY1HhqYlk4HkA'  # Replace with your actual API key
+api_key = os.getenv('OPENAI_API_KEY')
 
 client = OpenAI(api_key=api_key)
 
