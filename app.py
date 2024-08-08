@@ -190,7 +190,7 @@ def estimate_cost(model, scaler, product_type, material_type, weight, production
     input_data = pd.get_dummies(input_data, columns=['product_type', 'material_type'])
     
     # Ensure the input data has the same columns as the training data
-    for col in X.columns:
+    for col in re.X.columns:
         if col not in input_data.columns:
             input_data[col] = 0
     
