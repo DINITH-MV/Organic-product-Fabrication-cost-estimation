@@ -31,7 +31,7 @@ def classify_image(image_url):
         }
     ]
 
-    response = client.chat_completions.create(
+    response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=messages,
         max_tokens=300
