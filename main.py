@@ -153,56 +153,12 @@ def generate_data(product_class):
         print(f"Template for product type '{product_class}' not found.")
         return pd.DataFrame()
 
-# Encode categorical variables
-def encode_data(df):
-    X = df[['product_type', 'material_type', 'weight', 'production_time', 'labor_cost', 'overhead_cost']]
-    y = df['total_cost']
-    X = pd.get_dummies(X, columns=['product_type', 'material_type'])
-    return X, y
-
-# Split the data
-def split_and_scale_data(X, y):
-    if len(X) > 1:
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
-        return X_train, X_test, y_train, y_test, scaler
-    else:
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        return X_scaled, X_scaled, y, y, scaler
-
-# Train the model
-def train_model(X_train, y_train):
-    cost_model = RandomForestRegressor(n_estimators=100, random_state=42)
-    cost_model.fit(X_train, y_train)
-    return cost_model
-
-# Evaluate the model
-def evaluate_model(model, X_test, y_test):
-    y_pred = model.predict(X_test)
-    mae = mean_absolute_error(y_test, y_pred)
-    print(f"Mean Absolute Error: {mae:.2f}")
-
-# Estimate cost
-def estimate_cost(model, scaler, X, product_type, material_type, weight, production_time, labor_cost, overhead_cost, conversion_rate=320):
-    input_data = pd.DataFrame([[product_type, material_type, weight, production_time, labor_cost, overhead_cost]], 
-                              columns=['product_type', 'material_type', 'weight', 'production_time', 'labor_cost', 'overhead_cost'])
-    input_data = pd.get_dummies(input_data, columns=['product_type', 'material_type'])
-    
-    # Ensure the input data has the same columns as the training data
-    for col in X.columns:
-        if col not in input_data.columns:
-            input_data[col] = 0
-    
-    # Reorder the columns to match the training data
-    input_data = input_data[X.columns]
-    
-    input_data = scaler.transform(input_data)
-    estimated_cost_usd = model.predict(input_data)[0]
-    estimated_cost_lkr = estimated_cost_usd * conversion_rate
-    return estimated_cost_usd, estimated_cost_lkr
+# Estimate cost directly without training any model
+def estimate_cost(df, conversion_rate=320):
+    # Assuming the DataFrame `df` contains the relevant data for cost calculation
+    usd_cost = df['total_cost'].mean()  # Average total cost in USD
+    lkr_cost = usd_cost * conversion_rate  # Convert to LKR using a fixed rate
+    return usd_cost, lkr_cost
 
 # Define a Pydantic model for the incoming request
 class EstimateCostRequest(BaseModel):
@@ -218,35 +174,14 @@ async def estimate_cost_api(request: EstimateCostRequest):
     # Generate data based on detected product type
     df = generate_data(product_class)
     if not df.empty:
-        # Encode, split, scale, and train the model
-        X, y = encode_data(df)
-        X_train, X_test, y_train, y_test, scaler = split_and_scale_data(X, y)
-        cost_model = train_model(X_train, y_train)
-        if len(X_train) > 1:
-            evaluate_model(cost_model, X_test, y_test)
-
-        # Define the new material and update factors
-        new_material = 'organic'
-        weight_increase_factor = 1.2  # Example factor
-        cost_increase_factor = 1.5  # Example factor
-
-        # Update the DataFrame with the new material
-        df.loc[df['product_type'] == product_class, 'material_type'] = new_material
-        df.loc[df['product_type'] == product_class, 'weight'] *= weight_increase_factor
-        df.loc[df['product_type'] == product_class, 'total_cost'] *= cost_increase_factor
-
-        # Estimate the cost
-        usd_cost, lkr_cost = estimate_cost(cost_model, scaler, X, product_class, new_material, 
-                                           df.loc[df['product_type'] == product_class, 'weight'].values[0], 
-                                           df.loc[df['product_type'] == product_class, 'production_time'].values[0], 
-                                           df.loc[df['product_type'] == product_class, 'labor_cost'].values[0], 
-                                           df.loc[df['product_type'] == product_class, 'overhead_cost'].values[0])
+        # Estimate the cost directly
+        usd_cost, lkr_cost = estimate_cost(df)
 
         response = {
             "product_type": product_class,
             "usd_cost": usd_cost,
             "lkr_cost": lkr_cost,
-            "new_material_type": new_material
+            "new_material_type": "organic"
         }
     else:
         response = {
