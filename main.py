@@ -119,7 +119,7 @@ product_templates = {
         'production_time': [1.0, 1.2],  # hours
         'labor_cost': [3.33, 4.167],  # USD
         'overhead_cost': [0.2, 0.3],  # USD
-        'total_cost': [8.3, 11.667]  # USD (plastic vs. organic)
+        'total_cost': [6.3, 8.4]  # USD (plastic vs. organic)
     }
 }
 
